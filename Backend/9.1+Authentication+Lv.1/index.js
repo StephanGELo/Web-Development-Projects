@@ -33,17 +33,38 @@ app.get("/register", (req, res) => {
 app.post("/register", async (req, res) => {
   const email = req.body.username;
   const password = req.body.password;
-  const result =  await db.query(
-    "INSERT INTO users (email, password) VALUES ($1, $2)", [email, password]
-  );
-    console.log(result);
-    res.render("secrets.ejs");
+  try {
+    const checkUser = await db.query( "SELECT * FROM users WHERE email=$1", [email]);
+    if (checkUser.rows.length > 0){
+      res.send("User already exists. Try logging in.");
+    } else {
+       await db.query(
+        "INSERT INTO users (email, password) VALUES ($1, $2)", [email, password]
+      );
+      res.render("secrets.ejs");
+    }
+  } catch (err) {console.log(err)};
   });
 
 app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  console.log("username is: ", username);
-  console.log("password is: ", password);
+  const email = req.body.username;
+  const password = req.body.password;
+
+  try {
+    const checkUser = await db.query( 
+      "SELECT * FROM users WHERE email=$1", [email]
+    );
+    if (checkUser.rows.length === 0) {
+      res.send("User does not exisit. Try registering a new acccount.");
+    } else {
+      const user = checkUser.rows[0];
+      if(user.password === password) {
+        res.render("secrets.ejs");
+      } else {
+        res.send("Password is incorrect. Try again.");
+      }
+    }
+  } catch(err) { console.log(err)};
 });
 
 app.listen(port, () => {
