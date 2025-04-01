@@ -2,16 +2,18 @@ import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
 import {} from "dotenv/config";
+import bcrypt from "bcrypt";
 
 const app = express();
 const port = 3000;
+const saltRounds = 10;
 
 const db = new pg.Client({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+user: `${process.env.DATABASE_USER}`,
+  host:`${process.env.DATABASE_HOST}`,
+  database: `${process.env.DATABASE_NAME}`,
+  password:`${process.env.DATABASE_PASSWORD}`,
+  port: `${process.env.DATABASE_PORT}`,
 });
 db.connect();
 
@@ -35,23 +37,28 @@ app.post("/register", async (req, res) => {
   const password = req.body.password;
 
   try {
-    const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-
-    if (checkResult.rows.length > 0) {
-      res.send("Email already exists. Try logging in.");
-    } else {
-      const result = await db.query(
-        "INSERT INTO users (email, password) VALUES ($1, $2)",
-        [email, password]
-      );
-      console.log(result);
-      res.render("secrets.ejs");
-    }
-  } catch (err) {
-    console.log(err);
-  }
+        const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [
+          email
+        ]);
+        if (checkResult.rows.length > 0) {
+          res.send("Email already exists. Try logging in.");
+        } else {
+          // Hash the password before storing it
+          const hashedPassword = bcrypt.hash(password, saltRounds, async(err, hash)=>{
+            if (err) {
+              console.error("Error hashing password:", err);
+            } else {
+              const result = await db.query(
+                "INSERT INTO users (email, password) VALUES ($1, $2)", [email, hashedPassword]
+              );
+              console.log(result);
+              res.render("secrets.ejs");
+            }
+          });
+        }
+      } catch (err) {
+        console.log(err);
+      }
 });
 
 app.post("/login", async (req, res) => {
