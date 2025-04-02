@@ -44,12 +44,12 @@ app.post("/register", async (req, res) => {
           res.send("Email already exists. Try logging in.");
         } else {
           // Hash the password before storing it
-          const hashedPassword = bcrypt.hash(password, saltRounds, async(err, hash)=>{
+           bcrypt.hash(password, saltRounds, async(err, hash)=>{
             if (err) {
               console.error("Error hashing password:", err);
             } else {
               const result = await db.query(
-                "INSERT INTO users (email, password) VALUES ($1, $2)", [email, hashedPassword]
+                "INSERT INTO users (email, password) VALUES ($1, $2)", [email, hash]
               );
               console.log(result);
               res.render("secrets.ejs");
