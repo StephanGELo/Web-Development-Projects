@@ -63,7 +63,7 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const email = req.body.username;
-  const password = req.body.password;
+  const loginPassword = req.body.password;
 
   try {
     const result = await db.query("SELECT * FROM users WHERE email = $1", [
@@ -71,13 +71,19 @@ app.post("/login", async (req, res) => {
     ]);
     if (result.rows.length > 0) {
       const user = result.rows[0];
-      const storedPassword = user.password;
+      const storedHashedPassword = user.password;
 
-      if (password === storedPassword) {
-        res.render("secrets.ejs");
-      } else {
-        res.send("Incorrect Password");
-      }
+      bcrypt.compare(loginPassword, storedHashedPassword, (err,result) =>{
+        if (err) {
+          console.error("Error comparing passwords:", err);
+        } else {
+          if (result) {
+            res.render("secrets.ejs");
+          } else {
+            res.send("Incorrect Password. Try Again");
+          }
+        }
+      });
     } else {
       res.send("User not found");
     }

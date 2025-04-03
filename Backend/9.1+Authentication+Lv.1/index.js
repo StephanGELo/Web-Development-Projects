@@ -1,7 +1,8 @@
 import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
-import {} from 'dotenv/config'
+import {} from 'dotenv/config';
+import bcrypt from "bcrypt";
 
 const app = express();
 const port = 3000;
@@ -47,24 +48,28 @@ app.post("/register", async (req, res) => {
   });
 
 app.post("/login", async (req, res) => {
-  const email = req.body.username;
+    const email = req.body.username;
   const password = req.body.password;
 
   try {
-    const checkUser = await db.query( 
-      "SELECT * FROM users WHERE email=$1", [email]
-    );
-    if (checkUser.rows.length === 0) {
-      res.send("User does not exisit. Try registering a new acccount.");
-    } else {
-      const user = checkUser.rows[0];
-      if(user.password === password) {
+    const result = await db.query("SELECT * FROM users WHERE email = $1", [
+      email,
+    ]);
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const storedPassword = user.password;
+
+      if (password === storedPassword) {
         res.render("secrets.ejs");
       } else {
-        res.send("Password is incorrect. Try again.");
+        res.send("Incorrect Password");
       }
+    } else {
+      res.send("User not found");
     }
-  } catch(err) { console.log(err)};
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 app.listen(port, () => {
