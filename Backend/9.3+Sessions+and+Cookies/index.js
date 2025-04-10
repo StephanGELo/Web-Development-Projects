@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import {} from 'dotenv/config';
 import session from "express-session";
 import passport from "passport";
+import { Strategy } from "passport-local";
 
 const app = express();
 const port = 3000;
@@ -31,6 +32,7 @@ const db = new pg.Client({
 db.connect();
 
 app.get("/secrets", (req, res) =>{
+  //console.log(req.user);
   if(req.isAuthenticated()) {
     res.render("secrets.ejs");
   } else {
@@ -81,34 +83,46 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.post("/login", async (req, res) => {
-  const email = req.body.username;
-  const loginPassword = req.body.password;
+app.post("/login", passport.authenticate("local", {
+  successRedirect: "/secrets",
+  failureRedirect: "/login"
+}));
+
+passport.use(new Strategy(async function verify(username, password, cb) {
+  console.log(username);
 
   try {
     const result = await db.query("SELECT * FROM users WHERE email = $1", [
-      email,
+      username,
     ]);
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const storedHashedPassword = user.password;
-      bcrypt.compare(loginPassword, storedHashedPassword, (err, result) => {
+      bcrypt.compare(password, storedHashedPassword, (err, result) => {
         if (err) {
-          console.error("Error comparing passwords:", err);
+          return cb(err);
         } else {
           if (result) {
-            res.render("secrets.ejs");
+            return cb(null, user);
           } else {
-            res.send("Incorrect Password");
+            return cb(null, false);
           }
         }
       });
     } else {
-      res.send("User not found");
+      return cb("User not found");
     }
   } catch (err) {
-    console.log(err);
+    return cb(err);
   }
+}));
+
+passport.serializeUser((user, cb)=>{
+  cb(null, user);
+});
+
+passport.deserializeUser((user, cb) =>{
+  cb(null, user);
 });
 
 app.listen(port, () => {
