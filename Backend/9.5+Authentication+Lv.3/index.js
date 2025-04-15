@@ -4,6 +4,7 @@ import pg from "pg";
 import bcrypt from "bcrypt";
 import passport from "passport";
 import { Strategy } from "passport-local";
+import GoogleStrategy from "passport-google-oauth2";
 import session from "express-session";
 import env from "dotenv";
 
@@ -65,6 +66,17 @@ app.get("/secrets", (req, res) => {
   }
 });
 
+app.get("/auth/google", passport.authenticate("google", {
+  scope: ["profile", "email"],
+  })
+);
+
+app.get("/auth/google/secrets", passport.authenticate("google", {
+  successRedirect: "/secrets",
+  failureRedirect:"/login",
+})
+);
+
 app.post(
   "/login",
   passport.authenticate("local", {
@@ -106,7 +118,14 @@ app.post("/register", async (req, res) => {
   }
 });
 
-passport.use(
+// Create a new strategy for local authentication and name it "local"
+  // Local strategy for username and password authentication
+  // This strategy will be used for the login process
+  // It checks the username and password against the database
+  // If the username and password are correct, it returns the user object
+  // If the username and password are incorrect, it returns false
+  // If there is an error, it returns the error
+passport.use("local",
   new Strategy(async function verify(username, password, cb) {
     try {
       const result = await db.query("SELECT * FROM users WHERE email = $1 ", [
@@ -138,6 +157,15 @@ passport.use(
     }
   })
 );
+
+passport.use("google", new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "http://localhost:3000/auth/google/secrets",
+  userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+}, async(accessToken, refreshToken, profile, cb) => {
+  console.log(profile);
+}));
 
 passport.serializeUser((user, cb) => {
   cb(null, user);
