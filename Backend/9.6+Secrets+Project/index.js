@@ -56,18 +56,34 @@ app.get("/logout", (req, res) => {
   });
 });
 
-app.get("/secrets", (req, res) => {
+/////////***UPDATED GET ROUTE FOR PULLING SECRETS***////////////
+app.get("/secrets", async (req, res) => {
   if (req.isAuthenticated()) {
-    res.render("secrets.ejs");
-
-    //TODO: Update this to pull in the user secret to render in secrets.ejs
+    try {
+      const result = await db.query("SELECT secrets FROM users WHERE email = $1", [req.user.email] );
+      if (result.rows.length > 0) {
+        const secret = result.rows[0].secrets;
+        res.render("secrets.ejs", {secret: secret});
+      } else {
+        res.render("secrets.ejs", {secret: "You have to submit a secret first!"});
+      };
+    } catch (err) {
+      console.log(err);
+    };
   } else {
     res.redirect("/login");
   }
 });
 
-//TODO: Add a get route for the submit button
-//Think about how the logic should work with authentication.
+/////////***GET ROUTE FOR THE SUBMIT BUTTON***//////////
+//The logic should work with authentication.
+app.get("/submit", (req, res) => {
+  if (req.isAuthenticated()) {
+    res.render("submit.ejs");
+  } else {
+    res.redirect("/login");
+  }
+});
 
 app.get(
   "/auth/google",
@@ -125,8 +141,18 @@ app.post("/register", async (req, res) => {
   }
 });
 
-//TODO: Create the post route for submit.
+/////////**POST ROUTE FOR SUBMITTING SECRETS**//////////
 //Handle the submitted data and add it to the database
+app.post("/submit", async (req, res) => {
+  const secret = req.body.secret;
+  const email = req.user.email;
+  try {
+    await db.query("UPDATE users SET secrets = $1 WHERE email =$2", [ secret, email ]);
+    res.redirect("/secrets");
+  } catch (err) {
+    console.log(err);
+  }
+});
 
 passport.use(
   "local",
